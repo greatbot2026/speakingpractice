@@ -18,13 +18,13 @@
 <body class="bg-gray-50 min-h-screen flex flex-col font-sans text-gray-800">
 
     <header class="bg-purple-300 p-4 shadow-sm text-center flex-shrink-0">
-        <h1 class="text-lg font-bold tracking-wide text-gray-800">Listen and Repeat</h1>
+        <!-- 注意这里：我加了一个红色的 v4.0 版本号 -->
+        <h1 class="text-lg font-bold tracking-wide text-gray-800">Listen and Repeat <span style="color:red;">(v4.0)</span></h1>
         <div id="progress-text" class="text-sm mt-1 opacity-90 hidden text-gray-700">Question <span id="q-current">1</span> / 7</div>
     </header>
 
     <main class="flex-grow flex flex-col items-center justify-center p-4 overflow-hidden">
         
-        <!-- 欢迎页 -->
         <div id="intro-screen" class="text-center w-full max-w-md">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Listen & Repeat</h2>
             <p class="text-gray-500 mb-6 text-sm leading-relaxed">
@@ -35,13 +35,11 @@
                 <label class="block text-gray-700 text-sm font-bold mb-2">登录ID</label>
                 <input type="text" id="login-id" placeholder="请输入学号" class="shadow appearance-none border rounded-xl w-full py-3 px-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300">
             </div>
-            <!-- 去掉了 onclick，改用 JS 绑定 -->
             <button id="btn-start" class="w-full bg-purple-300 hover:bg-purple-400 text-white font-bold py-4 rounded-xl text-lg shadow">
                 开始训练
             </button>
         </div>
 
-        <!-- 任务页 -->
         <div id="task-screen" class="hidden text-center w-full max-w-md flex flex-col items-center justify-center h-64">
             <div id="status-listen" class="hidden">
                 <h2 class="text-2xl font-bold text-purple-400">🎧 认真听...</h2>
@@ -61,7 +59,6 @@
             </div>
         </div>
 
-        <!-- 结束页 -->
         <div id="congrats-screen" class="hidden text-center w-full max-w-md">
             <h2 class="text-4xl font-extrabold text-purple-400 mb-2">Congratulations!</h2>
             <p class="text-gray-500 mb-8">训练完成</p>
@@ -70,7 +67,6 @@
     </main>
 
     <script>
-        // 1. 配置数据
         const questionsList = [
             { duration: 8, audioFile: "1.mp3" },
             { duration: 8, audioFile: "2.mp3" },
@@ -81,12 +77,10 @@
             { duration: 8, audioFile: "7.mp3" }
         ];
 
-        // 2. 全局变量
         const myAudioPlayer = new Audio();
         let currentIndex = 0;
         let timerId = null;
 
-        // 3. 提示音函数
         function playBeepSound() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -99,12 +93,9 @@
                 gainNode.gain.value = 0.5;
                 oscillator.start();
                 oscillator.stop(audioCtx.currentTime + 0.2);
-            } catch (err) {
-                console.log("Beep error:", err);
-            }
+            } catch (err) {}
         }
 
-        // 4. 隐藏所有状态
         function hideAllTaskUI() {
             document.getElementById('status-listen').classList.add('hidden');
             document.getElementById('status-pause').classList.add('hidden');
@@ -112,30 +103,24 @@
             document.getElementById('status-save').classList.add('hidden');
         }
 
-        // 5. 倒计时逻辑
         function startCountdown(seconds) {
             hideAllTaskUI();
             document.getElementById('status-record').classList.remove('hidden');
-            
             let timeRemaining = seconds;
             const timerDisplay = document.getElementById('timer-text');
             
             function updateDisplay(val) {
-                let displayVal = val < 10 ? "0" + val : val;
-                timerDisplay.innerText = "00:" + displayVal;
+                timerDisplay.innerText = "00:" + (val < 10 ? "0" + val : val);
             }
-            
             updateDisplay(timeRemaining);
 
             timerId = setInterval(function() {
                 timeRemaining--;
                 updateDisplay(timeRemaining);
-                
                 if (timeRemaining <= 0) {
                     clearInterval(timerId);
                     hideAllTaskUI();
                     document.getElementById('status-save').classList.remove('hidden');
-                    
                     setTimeout(function() {
                         currentIndex++;
                         runNextQuestion();
@@ -144,7 +129,6 @@
             }, 1000);
         }
 
-        // 6. 播放当前题目
         function runNextQuestion() {
             if (currentIndex >= questionsList.length) {
                 document.getElementById('task-screen').classList.add('hidden');
@@ -161,7 +145,6 @@
             myAudioPlayer.src = currentItem.audioFile;
             
             myAudioPlayer.play().catch(function(err) {
-                console.log("Play error:", err);
                 setTimeout(function() { myAudioPlayer.onended(); }, 2000);
             });
 
@@ -175,20 +158,14 @@
             };
         }
 
-        // 7. 绑定“开始训练”按钮点击事件
         document.getElementById('btn-start').addEventListener('click', function() {
-            // 苹果设备音频解锁核心逻辑
             try {
                 myAudioPlayer.src = questionsList<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.audioFile;
                 myAudioPlayer.load();
                 myAudioPlayer.play().then(function() {
                     myAudioPlayer.pause();
-                }).catch(function(err) {
-                    console.log("Unlock error:", err);
-                });
-            } catch (err) {
-                console.log("Init error:", err);
-            }
+                }).catch(function(err) {});
+            } catch (err) {}
 
             document.getElementById('intro-screen').classList.add('hidden');
             document.getElementById('task-screen').classList.remove('hidden');
@@ -198,11 +175,9 @@
             runNextQuestion();
         });
 
-        // 8. 绑定“再练一次”按钮点击事件
         document.getElementById('btn-reload').addEventListener('click', function() {
             window.location.reload();
         });
-
     </script>
 </body>
 </html>
