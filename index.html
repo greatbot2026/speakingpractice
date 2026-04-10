@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Listen and Repeat by Capstone TOEFL</title>
+    <title>Listen and Repeat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .hidden { display: none !important; }
@@ -24,6 +24,7 @@
 
     <main class="flex-grow flex flex-col items-center justify-center p-4 overflow-hidden">
         
+        <!-- 欢迎页 -->
         <div id="intro-screen" class="text-center w-full max-w-md">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Listen & Repeat</h2>
             <p class="text-gray-500 mb-6 text-sm leading-relaxed">
@@ -34,11 +35,13 @@
                 <label class="block text-gray-700 text-sm font-bold mb-2">登录ID</label>
                 <input type="text" id="login-id" placeholder="请输入学号" class="shadow appearance-none border rounded-xl w-full py-3 px-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300">
             </div>
-            <button onclick="startTest()" class="w-full bg-purple-300 hover:bg-purple-400 text-white font-bold py-4 rounded-xl text-lg shadow">
+            <!-- 去掉了 onclick，改用 JS 绑定 -->
+            <button id="btn-start" class="w-full bg-purple-300 hover:bg-purple-400 text-white font-bold py-4 rounded-xl text-lg shadow">
                 开始训练
             </button>
         </div>
 
+        <!-- 任务页 -->
         <div id="task-screen" class="hidden text-center w-full max-w-md flex flex-col items-center justify-center h-64">
             <div id="status-listen" class="hidden">
                 <h2 class="text-2xl font-bold text-purple-400">🎧 认真听...</h2>
@@ -58,15 +61,17 @@
             </div>
         </div>
 
+        <!-- 结束页 -->
         <div id="congrats-screen" class="hidden text-center w-full max-w-md">
             <h2 class="text-4xl font-extrabold text-purple-400 mb-2">Congratulations!</h2>
             <p class="text-gray-500 mb-8">训练完成</p>
-            <button onclick="location.reload()" class="w-full bg-purple-300 text-white font-bold py-3 rounded-xl text-lg">再练一次</button>
+            <button id="btn-reload" class="w-full bg-purple-300 text-white font-bold py-3 rounded-xl text-lg">再练一次</button>
         </div>
     </main>
 
     <script>
-        const questions = [
+        // 1. 配置数据
+        const questionsList = [
             { duration: 8, audioFile: "1.mp3" },
             { duration: 8, audioFile: "2.mp3" },
             { duration: 10, audioFile: "3.mp3" },
@@ -76,103 +81,128 @@
             { duration: 8, audioFile: "7.mp3" }
         ];
 
-        const globalPlayer = new Audio();
-        let currentQIndex = 0;
-        let timerInterval;
+        // 2. 全局变量
+        const myAudioPlayer = new Audio();
+        let currentIndex = 0;
+        let timerId = null;
 
-        function playBeep() {
+        // 3. 提示音函数
+        function playBeepSound() {
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gainNode = ctx.createGain();
-                osc.connect(gainNode);
-                gainNode.connect(ctx.destination);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, ctx.currentTime);
-                gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.2);
-            } catch (e) {}
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 800;
+                gainNode.gain.value = 0.5;
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            } catch (err) {
+                console.log("Beep error:", err);
+            }
         }
 
-        function startTest() {
-            try {
-                globalPlayer.src = questions<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.audioFile;
-                globalPlayer.load();
-                globalPlayer.play().then(function() {
-                    globalPlayer.pause();
-                }).catch(function(e) {});
-            } catch (error) {}
+        // 4. 隐藏所有状态
+        function hideAllTaskUI() {
+            document.getElementById('status-listen').classList.add('hidden');
+            document.getElementById('status-pause').classList.add('hidden');
+            document.getElementById('status-record').classList.add('hidden');
+            document.getElementById('status-save').classList.add('hidden');
+        }
 
-            document.getElementById('intro-screen').classList.add('hidden');
-            document.getElementById('task-screen').classList.remove('hidden');
-            document.getElementById('progress-text').classList.remove('hidden');
+        // 5. 倒计时逻辑
+        function startCountdown(seconds) {
+            hideAllTaskUI();
+            document.getElementById('status-record').classList.remove('hidden');
             
-            currentQIndex = 0;
-            processQuestion();
+            let timeRemaining = seconds;
+            const timerDisplay = document.getElementById('timer-text');
+            
+            function updateDisplay(val) {
+                let displayVal = val < 10 ? "0" + val : val;
+                timerDisplay.innerText = "00:" + displayVal;
+            }
+            
+            updateDisplay(timeRemaining);
+
+            timerId = setInterval(function() {
+                timeRemaining--;
+                updateDisplay(timeRemaining);
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerId);
+                    hideAllTaskUI();
+                    document.getElementById('status-save').classList.remove('hidden');
+                    
+                    setTimeout(function() {
+                        currentIndex++;
+                        runNextQuestion();
+                    }, 1500);
+                }
+            }, 1000);
         }
 
-        function processQuestion() {
-            if (currentQIndex >= questions.length) {
+        // 6. 播放当前题目
+        function runNextQuestion() {
+            if (currentIndex >= questionsList.length) {
                 document.getElementById('task-screen').classList.add('hidden');
                 document.getElementById('progress-text').classList.add('hidden');
                 document.getElementById('congrats-screen').classList.remove('hidden');
                 return;
             }
 
-            document.getElementById('q-current').innerText = currentQIndex + 1;
-            hideAll();
+            document.getElementById('q-current').innerText = currentIndex + 1;
+            hideAllTaskUI();
             document.getElementById('status-listen').classList.remove('hidden');
 
-            const currentQ = questions[currentQIndex];
-            globalPlayer.src = currentQ.audioFile;
+            const currentItem = questionsList[currentIndex];
+            myAudioPlayer.src = currentItem.audioFile;
             
-            globalPlayer.play().catch(function(e) {
-                setTimeout(function() { globalPlayer.onended(); }, 2000);
+            myAudioPlayer.play().catch(function(err) {
+                console.log("Play error:", err);
+                setTimeout(function() { myAudioPlayer.onended(); }, 2000);
             });
 
-            globalPlayer.onended = function() {
-                hideAll();
+            myAudioPlayer.onended = function() {
+                hideAllTaskUI();
                 document.getElementById('status-pause').classList.remove('hidden');
                 setTimeout(function() {
-                    playBeep();
-                    startTimer(currentQ.duration);
+                    playBeepSound();
+                    startCountdown(currentItem.duration);
                 }, 1000);
             };
         }
 
-        function startTimer(duration) {
-            hideAll();
-            document.getElementById('status-record').classList.remove('hidden');
-            let timeLeft = duration;
-            const timerText = document.getElementById('timer-text');
-            
-            function updateText(val) {
-                timerText.innerText = "00:" + (val < 10 ? "0" + val : val);
+        // 7. 绑定“开始训练”按钮点击事件
+        document.getElementById('btn-start').addEventListener('click', function() {
+            // 苹果设备音频解锁核心逻辑
+            try {
+                myAudioPlayer.src = questionsList<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.audioFile;
+                myAudioPlayer.load();
+                myAudioPlayer.play().then(function() {
+                    myAudioPlayer.pause();
+                }).catch(function(err) {
+                    console.log("Unlock error:", err);
+                });
+            } catch (err) {
+                console.log("Init error:", err);
             }
-            updateText(timeLeft);
 
-            timerInterval = setInterval(function() {
-                timeLeft--;
-                updateText(timeLeft);
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    hideAll();
-                    document.getElementById('status-save').classList.remove('hidden');
-                    setTimeout(function() {
-                        currentQIndex++;
-                        processQuestion();
-                    }, 1500);
-                }
-            }, 1000);
-        }
+            document.getElementById('intro-screen').classList.add('hidden');
+            document.getElementById('task-screen').classList.remove('hidden');
+            document.getElementById('progress-text').classList.remove('hidden');
+            
+            currentIndex = 0;
+            runNextQuestion();
+        });
 
-        function hideAll() {
-            document.getElementById('status-listen').classList.add('hidden');
-            document.getElementById('status-pause').classList.add('hidden');
-            document.getElementById('status-record').classList.add('hidden');
-            document.getElementById('status-save').classList.add('hidden');
-        }
+        // 8. 绑定“再练一次”按钮点击事件
+        document.getElementById('btn-reload').addEventListener('click', function() {
+            window.location.reload();
+        });
+
     </script>
 </body>
 </html>
